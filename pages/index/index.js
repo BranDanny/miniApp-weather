@@ -18,12 +18,18 @@ const weatherColorMap = {
 
 const QQMapWX = require('../../libs/qqmap-wx-jssdk.js')
 
+const UNPROMPTED = 0
+const UNAUTHORIZED = 1
+const AUTHORIZED = 2 
+
 Page({
   data: {
-    nowTemp: '14°',
-    nowWeather: '阴天',
+    nowTemp: '',
+    nowWeather: '',
     nowWeatherBackgound: '',
-    hourlyWeather: []
+    hourlyWeather: [],
+    city: '上海市',
+    locationAuthType: UNPROMPTED
   },
 
   //下拉刷新
@@ -37,14 +43,27 @@ Page({
     this.qqmapsdk = new QQMapWX({
       key: 'VUIBZ-LIRKI-CFRGW-54AN4-ONOKZ-L3FR6'
     })
-    this.getNow()
+    wx.getSetting({
+      success: res => {
+        let auth = res.authSetting['scope.userLocation'];
+        this.setData({
+          locationAuthType : auth ? AUTHORIZED : (auth === false) ? UNAUTHORIZED : UNPROMPTED,
+        })
+
+        if (auth) {
+          this.getCityAndWeather()
+        } else {
+          this.getNow()
+        }
+      }
+    })
   },
 
   getNow(callback) {
     wx.request({
       url: 'https://test-miniprogram.com/api/weather/now',
       data: {
-        city: '武汉市',
+        city: this.data.city,
       },
       success: res => {
         let result = res.data.result;
@@ -80,7 +99,7 @@ Page({
     let nowHour = new Date().getHours();
     let hourlyWeather = [];
 
-    for(let i = 0; i < 8; i++) {
+    for (let i = 0; i < 8; i++) {
       hourlyWeather.push({
         time: (i * 3 + nowHour) % 24 + '时',
         iconPath: '/images/' + forecastData[i].weather + '-icon.png',
@@ -105,21 +124,48 @@ Page({
 
   onTapDayWeather() {
     wx.navigateTo({
-      url: '/pages/list/list',
+      url: '/pages/list/list?city=' + this.data.city,
     })
   },
 
   onTapLocation() {
+    if (this.data.locationAuthType === UNAUTHORIZED) {
+      wx.openSetting({
+        success: res => {
+          let auth = res.authSetting['scope.userLocation'];
+          if (auth) {
+            this.getCityAndWeather()
+          }
+        }
+      })
+    } else {
+      this.getCityAndWeather()
+    }
+  },
+
+  getCityAndWeather() {
     wx.getLocation({
       success: res => {
+        this.setData({
+          locationAuthType: AUTHORIZED,
+        })
         this.qqmapsdk.reverseGeocoder({
           location: {
             latitude: res.latitude,
             longitude: res.longitude
           },
           success: res => {
-            cosnole.log(res);
+            let city = res.result.address_component.city
+            this.setData({
+              city: city,
+            })
+            this.getNow()
           }
+        })
+      },
+      fail: res => {
+        this.setData({
+          locationAuthType: UNAUTHORIZED,
         })
       }
     })

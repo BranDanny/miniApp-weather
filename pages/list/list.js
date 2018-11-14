@@ -2,10 +2,14 @@ const dayMap = ['星期日', '星期一', '星期二', '星期三', '星期四',
 
 Page({
   data: {
-    weekWeather: [1,2,3,4,5,6,7]
+    weekWeather: [1,2,3,4,5,6,7],
+    city: ''
   },
 
-  onLoad() {
+  onLoad(options) {
+    this.setData({
+      city: options.city
+    })
     this.getWeekWeather()
   },
 
@@ -19,13 +23,12 @@ Page({
     wx.request({
       url: 'https://test-miniprogram.com/api/weather/future',
       data: {
-        city: '武汉市',
+        city: this.data.city,
         time: new Date().getTime()
       },
       success: res => {
         let result = res.data.result;
         this.setWeekWeather(result);
-        console.log(result);
       },
       complete: () => {
         callback && callback()
@@ -35,7 +38,7 @@ Page({
 
   setWeekWeather(result) {
     let weekWeather = [];
-    for(let i = 0; i < 7; i++) {
+    for (let i = 0; i < 7; i++) {
       let date = new Date();
       date.setDate(date.getDate() + i);
       weekWeather.push({
